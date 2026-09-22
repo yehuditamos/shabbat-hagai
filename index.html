@@ -4,13 +4,9 @@
     ?cur[0].title
     :cur.length+' אירועים מסומנים יתווספו יחד ליומן';
   $('calM').style.display='grid'
-}function ask(k){kind=k;$('calM').style.display='none';$('confirmText').textContent='להוסיף '+(cur.length==1?'את האירוע':'את '+cur.length+' האירועים')+' ליומן?';$('confirmM').style.display='grid'}$('gcal').onclick=()=>ask('g');$('ical').onclick=()=>ask('i');$('confirm').onclick=()=>{
+}function ask(k){kind=k;$('calM').style.display='none';$('confirmText').textContent=k=='i'&&cur.length>1?'לחיצה על אישור תפתח מנוי ליומן עם '+cur.length+' השיבוצים שבחרת. השינויים וההחלפות יתעדכנו ביומן אוטומטית.':'להוסיף '+(cur.length==1?'את האירוע':'את '+cur.length+' האירועים')+' ליומן?';$('confirmM').style.display='grid'}$('gcal').onclick=()=>ask('g');$('ical').onclick=()=>ask('i');$('confirm').onclick=()=>{
   $('confirmM').style.display='none';
-  if(kind=='g'&&cur.length==1){
-    location.href=gurl(cur[0]);
-    return;
-  }
-  dl(cur);
+  if(kind=='g'&&cur.length==1){location.href=gurl(cur[0]);return}if(kind=='i'&&cur.length>1){const w=$('who').value;location.href='webcal://shabbat-hagai.vercel.app/api/calendar?who='+encodeURIComponent(w);return}dl(cur);
 };function isCurrentOrFuture(e){
   const today=new Date();
   today.setHours(0,0,0,0);
