@@ -17,8 +17,14 @@ function make(){
       last.id='b-'+ymd(last.start)+'-'+ymd(last.end);
     }else merged.push({...e,start:new Date(e.start),end:new Date(e.end),parts:[...e.parts],id:'b-'+ymd(e.start)+'-'+ymd(e.end)});
   });
-  let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0}]));
-  return merged.map(e=>{let p=[...P].sort((a,b)=>s[a].t-s[b].t||s[a].p-s[b].p)[0];s[p].t++;s[p].p++;let r=P.filter(x=>x!==p).sort((a,b)=>s[a].t-s[b].t||s[a].r-s[b].r)[0];s[r].t++;s[r].r++;return {...e,op:p,od:r,pickup:p,dropoff:r}})
+  let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0,last:-99}]));
+  const cutoff=D('2026-10-04');
+  return merged.map((e,i)=>{
+    if(e.end<cutoff)return {...e,op:'',od:'',pickup:'',dropoff:''};
+    let p=[...P].sort((a,b)=>(s[a].t-s[b].t)||(s[a].p-s[b].p)||(s[a].last-s[b].last))[0];s[p].t++;s[p].p++;s[p].last=i;
+    let r=P.filter(x=>x!==p).sort((a,b)=>(s[a].t-s[b].t)||(s[a].r-s[b].r)||(s[a].last-s[b].last))[0];s[r].t++;s[r].r++;s[r].last=i;
+    return {...e,op:p,od:r,pickup:p,dropoff:r}
+  })
 }
 const esc=s=>String(s).replaceAll('\\','\\\\').replaceAll('\n','\\n').replaceAll(',','\\,').replaceAll(';','\\;');
 export default async function handler(req,res){let A=make();try{const r=await fetch(U+'/rest/v1/shabbat_hagai_overrides?select=*',{headers:{apikey:K}});const rows=await r.json();const O=Object.fromEntries(rows.map(x=>[x.event_id,x]));A.forEach(e=>{const o=O[e.id]||{};if(o.pickup_swapped&&o.pickup_replacement)e.pickup=o.pickup_replacement;if(o.dropoff_swapped&&o.dropoff_replacement)e.dropoff=o.dropoff_replacement})}catch(e){}
