@@ -16,10 +16,14 @@
       merged.push({...e,start:new Date(e.start),end:new Date(e.end),parts:[...e.parts],id:'b-'+ymd(e.start)+'-'+ymd(e.end)});
     }
   });
-  let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0}]));
-  return merged.map(e=>{
-    let p=[...P].sort((a,b)=>s[a].t-s[b].t||s[a].p-s[b].p)[0];s[p].t++;s[p].p++;
-    let r=P.filter(x=>x!=p).sort((a,b)=>s[a].t-s[b].t||s[a].r-s[b].r)[0];s[r].t++;s[r].r++;
+  let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0,last:-99}]));
+  const cutoff=D('2026-10-04');
+  return merged.map((e,i)=>{
+    if(e.end<cutoff) return {...e,op:'',od:'',pickup:'',dropoff:''};
+    let p=[...P].sort((a,b)=>(s[a].t-s[b].t)||(s[a].p-s[b].p)||(s[a].last-s[b].last))[0];
+    s[p].t++;s[p].p++;s[p].last=i;
+    let r=P.filter(x=>x!=p).sort((a,b)=>(s[a].t-s[b].t)||(s[a].r-s[b].r)||(s[a].last-s[b].last))[0];
+    s[r].t++;s[r].r++;s[r].last=i;
     return {...e,op:p,od:r,pickup:p,dropoff:r}
   })
 }const A=make();let O={},cur=[],kind='';function apply(){A.forEach(e=>{let o=O[e.id]||{};e.ps=!!(o.pickup_swapped&&o.pickup_replacement);e.ds=!!(o.dropoff_swapped&&o.dropoff_replacement);e.pickup=e.ps?o.pickup_replacement:e.op;e.dropoff=e.ds?o.dropoff_replacement:e.od})}async function load(){try{let r=await fetch(U+'/rest/v1/shabbat_hagai_overrides?select=*',{headers:{apikey:K}}),j=await r.json();O=Object.fromEntries(j.map(x=>[x.event_id,x]));apply()}catch(e){}renderAll()}async function save(id,role,on,v){let p={...(O[id]||{}),event_id:id,updated_at:new Date().toISOString()};p[role+'_swapped']=on;p[role+'_replacement']=on?v:null;let r=await fetch(U+'/rest/v1/shabbat_hagai_overrides?on_conflict=event_id',{method:'POST',headers:{apikey:K,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(p)});let j=await r.json();O[id]=j[0]||p;apply();renderAll()}function desc(e){return '🏠 לוקח/ת את חגי: '+e.pickup+'\n🚗 מחזיר/ה את חגי: '+e.dropoff+'\nהוסטל רמת גן ↔ קרני שומרון\n\n'+REM}function gurl(e){let f=d=>ymd(d).replaceAll('-','');return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(e.title+' ❤️')+'&dates='+f(e.start)+'/'+f(add(e.end,1))+'&details='+encodeURIComponent(desc(e))}function esc(s){return s.replaceAll('\\','\\\\').replaceAll('\n','\\n').replaceAll(',','\\,').replaceAll(';','\\;')}function ics(es){let f=d=>ymd(d).replaceAll('-','');return 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'+es.map(e=>'BEGIN:VEVENT\r\nUID:'+e.id+'@shabbat-hagai.vercel.app\r\nDTSTART;VALUE=DATE:'+f(e.start)+'\r\nDTEND;VALUE=DATE:'+f(add(e.end,1))+'\r\nSUMMARY:'+esc(e.title+' ❤️')+'\r\nDESCRIPTION:'+esc(desc(e))+'\r\nEND:VEVENT').join('\r\n')+'\r\nEND:VCALENDAR'}function dl(es){const ids=es.map(e=>e.id).join(',');location.href='/api/calendar?ids='+encodeURIComponent(ids)+'&download=1'}function openCal(es){
