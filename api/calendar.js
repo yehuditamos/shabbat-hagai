@@ -2,7 +2,24 @@ const P=['רועי','ענת','אמיתי','איילת','יהודית','מלאכ�
 const H=[['ראש השנה','2026-09-11','2026-09-13'],['יום כיפור','2026-09-20','2026-09-21'],['סוכות','2026-09-25','2026-10-02'],['שמחת תורה','2026-10-02','2026-10-03'],['פסח','2027-04-21','2027-04-28'],['שבועות','2027-06-10','2027-06-11']];
 const U='https://mwfvziqmbkrjrnbbzqsf.supabase.co',K='sb_publishable_-uoZ_lp_4KejIKrXxanR7g_JMmbBG47';
 const D=s=>new Date(s+'T12:00:00Z'),add=(d,n)=>{d=new Date(d);d.setUTCDate(d.getUTCDate()+n);return d},ymd=d=>d.toISOString().slice(0,10);
-function make(){let a=[],d=D('2026-08-13'),z=D('2027-08-12');while(d<=z){a.push({id:'w-'+ymd(d),title:'שבת חגי',start:new Date(d),end:add(d,2)});d=add(d,7)}H.forEach(h=>a.push({id:'h-'+h[0]+h[1],title:h[0],start:D(h[1]),end:D(h[2])}));a.sort((x,y)=>x.start-y.start);let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0}]));return a.map(e=>{let p=[...P].sort((a,b)=>s[a].t-s[b].t||s[a].p-s[b].p)[0];s[p].t++;s[p].p++;let r=P.filter(x=>x!==p).sort((a,b)=>s[a].t-s[b].t||s[a].r-s[b].r)[0];s[r].t++;s[r].r++;return {...e,op:p,od:r,pickup:p,dropoff:r}})}
+function make(){
+  let raw=[],d=D('2026-08-13'),z=D('2027-08-12');
+  while(d<=z){raw.push({id:'w-'+ymd(d),title:'שבת חגי',start:new Date(d),end:add(d,2),parts:['שבת חגי']});d=add(d,7)}
+  H.forEach(h=>raw.push({id:'h-'+h[0]+h[1],title:h[0],start:D(h[1]),end:D(h[2]),parts:[h[0]]}));
+  raw.sort((a,b)=>a.start-b.start);
+  let merged=[];
+  raw.forEach(e=>{
+    let last=merged[merged.length-1];
+    if(last&&e.start<=add(last.end,1)){
+      if(e.end>last.end)last.end=new Date(e.end);
+      last.parts=[...new Set([...last.parts,...e.parts])];
+      last.title=last.parts.join(' + ');
+      last.id='b-'+ymd(last.start)+'-'+ymd(last.end);
+    }else merged.push({...e,start:new Date(e.start),end:new Date(e.end),parts:[...e.parts],id:'b-'+ymd(e.start)+'-'+ymd(e.end)});
+  });
+  let s=Object.fromEntries(P.map(x=>[x,{t:0,p:0,r:0}]));
+  return merged.map(e=>{let p=[...P].sort((a,b)=>s[a].t-s[b].t||s[a].p-s[b].p)[0];s[p].t++;s[p].p++;let r=P.filter(x=>x!==p).sort((a,b)=>s[a].t-s[b].t||s[a].r-s[b].r)[0];s[r].t++;s[r].r++;return {...e,op:p,od:r,pickup:p,dropoff:r}})
+}
 const esc=s=>String(s).replaceAll('\\','\\\\').replaceAll('\n','\\n').replaceAll(',','\\,').replaceAll(';','\\;');
 export default async function handler(req,res){let A=make();try{const r=await fetch(U+'/rest/v1/shabbat_hagai_overrides?select=*',{headers:{apikey:K}});const rows=await r.json();const O=Object.fromEntries(rows.map(x=>[x.event_id,x]));A.forEach(e=>{const o=O[e.id]||{};if(o.pickup_swapped&&o.pickup_replacement)e.pickup=o.pickup_replacement;if(o.dropoff_swapped&&o.dropoff_replacement)e.dropoff=o.dropoff_replacement})}catch(e){}
 const who=decodeURIComponent(req.query.who||'הכול');const ids=String(req.query.ids||'').split(',').filter(Boolean);const today=new Date();today.setUTCHours(0,0,0,0);A=A.filter(e=>e.end>=today&&(ids.length?ids.includes(e.id):(who==='הכול'||e.pickup===who||e.dropoff===who)));
